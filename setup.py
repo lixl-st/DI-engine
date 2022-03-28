@@ -79,7 +79,8 @@ setup(
         'pynng',
         'pettingzoo',
         'pyglet>=1.4.0',
-        'box2d-py'
+        'box2d-py',
+        'redis'
     ],
     extras_require={
         'test': [
