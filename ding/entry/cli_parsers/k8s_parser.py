@@ -4,9 +4,7 @@ from typing import List, Optional
 
 class K8SParser():
 
-    def __init__(
-            self, platform_spec: Optional[str] = None, topology: str = "alone", ports: str = None, **kwargs
-    ) -> None:
+    def __init__(self, platform_spec: Optional[str] = None, **kwargs) -> None:
         """
         Overview:
             Should only set global cluster properties
@@ -15,11 +13,13 @@ class K8SParser():
         self.nodelist = self._parse_node_list()
         self.ntasks = len(self.nodelist)
         self.platform_spec = platform_spec
-        self.topology = topology
-        self.ports = ports
+        self.topology = kwargs.get("topology")
+        self.ports = kwargs.get("ports")
         self.tasks = {}
 
     def parse(self) -> dict:
+        if self.kwargs.get("mq_type") != "nng":
+            return self.kwargs
         procid = int(os.environ["K8S_PROCID"])
         nodename = self.nodelist[procid]
         task = self._get_task(procid)
