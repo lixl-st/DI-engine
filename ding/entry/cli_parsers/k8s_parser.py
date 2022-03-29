@@ -18,8 +18,6 @@ class K8SParser():
         self.tasks = {}
 
     def parse(self) -> dict:
-        if self.kwargs.get("mq_type") != "nng":
-            return self.kwargs
         procid = int(os.environ["K8S_PROCID"])
         nodename = self.nodelist[procid]
         task = self._get_task(procid)
