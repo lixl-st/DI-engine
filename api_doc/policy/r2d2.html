@@ -5,7 +5,8 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <title>R2D2 &mdash; DI-engine 0.1.0 documentation</title>
@@ -204,9 +205,9 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="r2d2">
+  <section id="r2d2">
 <h1>R2D2<a class="headerlink" href="#r2d2" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="r2d2policy">
+<section id="r2d2policy">
 <h2>R2D2Policy<a class="headerlink" href="#r2d2policy" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="ding.policy.r2d2.R2D2Policy">
@@ -588,14 +589,10 @@ Init eval model with argmax strategy.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="ding.policy.r2d2.R2D2Policy._init_learn">
 <span class="sig-name descname"><span class="pre">_init_learn</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../_modules/ding/policy/r2d2.html#R2D2Policy._init_learn"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ding.policy.r2d2.R2D2Policy._init_learn" title="Permalink to this definition">¶</a></dt>
-<dd><dl>
+<dd><dl class="simple">
 <dt>Overview:</dt><dd><p>Init the learner model of R2D2Policy</p>
 </dd>
-<dt>Arguments:</dt><dd><div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>The _init_learn method takes the argument from the self._cfg.learn in the config file</p>
-</div>
-<ul class="simple">
+<dt>Arguments:</dt><dd><ul class="simple">
 <li><p>learning_rate (<code class="xref py py-obj docutils literal notranslate"><span class="pre">float</span></code>): The learning rate fo the optimizer</p></li>
 <li><p>gamma (<code class="xref py py-obj docutils literal notranslate"><span class="pre">float</span></code>): The discount factor</p></li>
 <li><p>nstep (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>): The num of n step return</p></li>
@@ -604,6 +601,10 @@ Init eval model with argmax strategy.</p>
 </ul>
 </dd>
 </dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The _init_learn method takes the argument from the self._cfg.learn in the config file</p>
+</div>
 </dd></dl>
 
 <dl class="py method">
@@ -631,8 +632,8 @@ Init eval model with argmax strategy.</p>
 
 </dd></dl>
 
-</div>
-</div>
+</section>
+</section>
 
 
            </div>
