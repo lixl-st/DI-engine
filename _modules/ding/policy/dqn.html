@@ -177,7 +177,7 @@
 <span class="kn">from</span> <span class="nn">ding.utils.data</span> <span class="kn">import</span> <span class="n">default_collate</span><span class="p">,</span> <span class="n">default_decollate</span>
 <span class="kn">from</span> <span class="nn">.base_policy</span> <span class="kn">import</span> <span class="n">Policy</span>
 <span class="kn">from</span> <span class="nn">.common_utils</span> <span class="kn">import</span> <span class="n">default_preprocess_learn</span>
-<span class="kn">from</span> <span class="nn">ding.utils.mi_estimator</span> <span class="kn">import</span> <span class="n">ContrastiveLoss</span>
+<span class="kn">from</span> <span class="nn">ding.torch_utils</span> <span class="kn">import</span> <span class="n">ContrastiveLoss</span>
 
 
 <div class="viewcode-block" id="DQNPolicy"><a class="viewcode-back" href="../../../hands_on/dqn_zh.html#ding.policy.dqn.DQNPolicy">[docs]</a><span class="nd">@POLICY_REGISTRY</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s1">&#39;dqn&#39;</span><span class="p">)</span>
@@ -551,8 +551,8 @@
         <span class="k">return</span> <span class="s1">&#39;dqn&#39;</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;ding.model.template.q_learning&#39;</span><span class="p">]</span></div></div>
 
 
-<span class="nd">@POLICY_REGISTRY</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s1">&#39;dqn_aux&#39;</span><span class="p">)</span>
-<span class="k">class</span> <span class="nc">DQNAuxPolicy</span><span class="p">(</span><span class="n">DQNPolicy</span><span class="p">):</span>
+<span class="nd">@POLICY_REGISTRY</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s1">&#39;dqn_stdim&#39;</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">DQNSTDIMPolicy</span><span class="p">(</span><span class="n">DQNPolicy</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Overview:</span>
 <span class="sd">        Policy class of DQN algorithm, extended by auxiliary objectives.</span>
@@ -740,8 +740,8 @@
         <span class="c1"># Auxiliary model update</span>
         <span class="c1"># ======================</span>
         <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
-            <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aux_encode</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
-        <span class="n">aux_loss_learn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aux_model</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+            <span class="n">x_no_grad</span><span class="p">,</span> <span class="n">y_no_grad</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aux_encode</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">aux_loss_learn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aux_model</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">x_no_grad</span><span class="p">,</span> <span class="n">y_no_grad</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_aux_optimizer</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
         <span class="n">aux_loss_learn</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_aux_optimizer</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
@@ -755,6 +755,7 @@
         <span class="c1"># ======================</span>
         <span class="c1"># Compute auxiliary loss</span>
         <span class="c1"># ======================</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aux_encode</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
         <span class="n">aux_loss_eval</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aux_model</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aux_ratio</span>
         <span class="n">loss</span> <span class="o">+=</span> <span class="n">aux_loss_eval</span>
 
