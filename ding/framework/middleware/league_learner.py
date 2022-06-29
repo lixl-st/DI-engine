@@ -1,18 +1,14 @@
-from ditk import logging
 import os
-from dataclasses import dataclass
 from collections import deque
-from threading import Lock
+from dataclasses import dataclass
 from time import sleep
-from typing import TYPE_CHECKING, Callable, Optional
-from ding.data.buffer.deque_buffer import DequeBuffer
+from typing import TYPE_CHECKING
 
+from ditk import logging
 from ding.framework import task, EventEnum
-from ding.framework.middleware import OffPolicyLearner, CkptSaver, data_pusher
-from ding.framework.storage import Storage, FileStorage
+from ding.framework.storage import FileStorage
 from ding.league.player import PlayerMeta
-from ding.utils.sparse_logging import log_every_sec
-from ding.worker.learner.base_learner import BaseLearner
+from ding.utils import log_every_sec
 
 if TYPE_CHECKING:
     from ding.policy import Policy
@@ -32,7 +28,7 @@ class LeagueLearnerCommunicator:
 
     def __init__(self, cfg: dict, policy: "Policy", player: "ActivePlayer") -> None:
         self.cfg = cfg
-        self._cache = deque(maxlen=1000)
+        self.cache = deque(maxlen=100)
         self.player = player
         self.player_id = player.player_id
         self.policy = policy
@@ -48,22 +44,22 @@ class LeagueLearnerCommunicator:
         )
         for env_trajectories in data.train_data:
             for traj in env_trajectories.trajectories:
-                self._cache.append(traj)
+                self.cache.append(traj)
         # if isinstance(data.train_data, list):
-        #     self._cache.extend(data.train_data)
+        #     self.cache.extend(data.train_data)
         # else:
-        #     self._cache.append(data.train_data)
+        #     self.cache.append(data.train_data)
 
     def __call__(self, ctx: "Context"):
         log_every_sec(logging.INFO, 5, "[Learner {}] pour data into the ctx".format(task.router.node_id))
-        ctx.trajectories = list(self._cache)
-        self._cache.clear()
+        ctx.trajectories = list(self.cache)
+        self.cache.clear()
         sleep(0.1)
         yield
         log_every_sec(logging.INFO, 5, "[Learner {}] ctx.train_iter {}".format(task.router.node_id, ctx.train_iter))
         self.player.total_agent_step = ctx.train_iter
-        if self.player.is_trained_enough():
-            logging.info('{1} [Learner {0}] trained enough! {1} \n\n'.format(task.router.node_id, "-" * 40))
+        if self.player.is_trained_enough() and self.rank == 0:
+            logging.info('{1} [Learner {0}] trained enough! {1} \n\n'.format(task.router.node_id, "-" * 25))
             storage = FileStorage(
                 path=os.path.join(self.prefix, "{}_{}_ckpt.pth".format(self.player_id, ctx.train_iter))
             )

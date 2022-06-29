@@ -12,6 +12,7 @@ from ding.framework.middleware.functional import ActorData, ActorDataMeta
 from ding.league.player import PlayerMeta
 from ding.utils.sparse_logging import log_every_sec
 
+
 if TYPE_CHECKING:
     from ding.league.v2.base_league import Job
     from ding.framework import BattleContext

@@ -1,5 +1,6 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from typing import List
+import json
 import copy
 from easydict import EasyDict
 
@@ -22,6 +23,14 @@ class Job:
     train_iter: int = None
     is_eval: bool = False
 
+    def __repr__(self) -> str:
+        data_dict = asdict(self)
+        for player in data_dict["players"]:
+            # checkpoint object is not serializable!
+            player["checkpoint"] = id(player["checkpoint"]) if player["checkpoint"] else None
+        return json.dumps(data_dict, indent=4)
+
+# print(repr(Job(launch_player="123", players=["123", "345"])))
 
 class BaseLeague:
     """

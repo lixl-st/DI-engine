@@ -1,12 +1,10 @@
-from collections import defaultdict
+from typing import TYPE_CHECKING, Dict
 from time import sleep
 from threading import Lock
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
-from ding.framework import task, EventEnum
-from ditk import logging
 
-from ding.utils.sparse_logging import log_every_sec
+from ditk import logging
+from ding.framework import task, EventEnum
+from ding.utils import log_every_sec
 
 if TYPE_CHECKING:
     from easydict import EasyDict
@@ -56,6 +54,12 @@ class LeagueCoordinator:
             "[Coordinator {}] recieve actor finished job, player {}".format(task.router.node_id, job.launch_player)
         )
         self.league.update_payoff(job)
+    
+    def _print_job(self, jobs: Dict[str, "Job"]):
+        res = ""
+        for actor_id, job in jobs.items():
+            res += "{}:\n{}\n".format(actor_id, repr(job))
+        return res
 
     def __del__(self):
         logging.info("[Coordinator {}] all tasks finished, coordinator closed".format(task.router.node_id))
@@ -63,5 +67,5 @@ class LeagueCoordinator:
     def __call__(self, ctx: "Context") -> None:
         sleep(1)
         log_every_sec(
-            logging.INFO, 30, "[Coordinator {}] running jobs {}".format(task.router.node_id, self._running_jobs)
+            logging.INFO, 60, "[Coordinator {}] running jobs:\n{}".format(task.router.node_id, self._print_job(self._running_jobs))
         )
