@@ -401,7 +401,7 @@ model:
                 activation: 'relu'
                 norm_type: 'LN'
                 ln_type: 'normal'
-                use_mask: False
+                use_mask: True
                 race: 'zerg'
                 temperature: 1.0
             delay_head:
