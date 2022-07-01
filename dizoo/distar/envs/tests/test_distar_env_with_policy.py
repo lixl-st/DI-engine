@@ -18,8 +18,10 @@ class TestDIstarEnv:
         self._whole_cfg = cfg
         self._policy = DIStarPolicy(DIStarPolicy.default_config(), enable_field=['collect']).collect_mode
         rl_model = torch.load('./rl_model.pth')
-        
-        self._policy.load_state_dict(rl_model)
+        model_state_dict = {k: v for k, v in rl_model['model'].items() if 'value_networks' not in k}
+        model_state_dict = {'model': model_state_dict}
+
+        self._policy.load_state_dict(model_state_dict)
 
     def _inference_loop(self, job={}):
 
@@ -40,9 +42,9 @@ class TestDIstarEnv:
                         for player_index, player_obs in observations.items():
                             output = self._policy.forward(player_obs)
                             actions[player_index] = output['action']
-                        # print('-------------------------------------------------------')
-                        # print(observations)
-                        # print(actions)
+                        print('-------------------------------------------------------')
+                        print(observations)
+                        print(actions)
 
                         # env step
                         timestep = self._env.step(actions)

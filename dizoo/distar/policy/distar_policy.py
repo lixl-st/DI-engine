@@ -104,7 +104,7 @@ class DIStarPolicy(Policy):
         ),
         grad_clip=dict(threshold=1.0, ),
         # collect
-        use_value_feature=True,  # whether to use value feature, this must be False when play against bot
+        use_value_feature=False,  # whether to use value feature, this must be False when play against bot
         zero_z_exceed_loop=True,  # set Z to 0 if game passes the game loop in Z
         zero_z_value=1,
         extra_units=True,  # selcet extra units if selected units exceed 64
@@ -408,7 +408,7 @@ class DIStarPolicy(Policy):
         if self._cfg.use_value_feature:
             obs = transform_obs(data['raw_obs'], self.map_size, self.requested_race, padding_spatial=True, opponent_obs=data['opponent_obs'])
         else:
-            raise NotImplementedError
+            obs = transform_obs(data['raw_obs'], self.map_size, self.requested_race, padding_spatial=True)
 
         game_info = obs.pop('game_info')
         game_step = game_info['game_loop']
