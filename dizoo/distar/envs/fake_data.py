@@ -125,17 +125,18 @@ def action_info():
 
 def action_logits(logp=False, action=None):
     data = {
-        'action_type': torch.rand(size=(NUM_ACTIONS, )) - 0.5,
-        'delay': torch.rand(size=(MAX_DELAY, )) - 0.5,
-        'queued': torch.rand(size=(2, )) - 0.5,
-        'selected_units': torch.rand(size=(MAX_SELECTED_UNITS_NUM, MAX_ENTITY_NUM + 1)) - 0.5,
-        'target_unit': torch.rand(size=(MAX_ENTITY_NUM, )) - 0.5,
-        'target_location': torch.rand(size=(H * W, )) - 0.5
+        'action_type': torch.rand(size=(NUM_ACTIONS, )),
+        'delay': torch.rand(size=(MAX_DELAY, )),
+        'queued': torch.rand(size=(2, )),
+        'selected_units': torch.rand(size=(MAX_SELECTED_UNITS_NUM, MAX_ENTITY_NUM + 1)),
+        'target_unit': torch.rand(size=(MAX_ENTITY_NUM, )),
+        'target_location': torch.rand(size=(H * W, ))
     }
     if logp:
         for k in data:
-            dist = torch.distributions.Categorical(logits=data[k])
-            data[k] = dist.log_prob(action[k])
+            # dist = torch.distributions.Categorical(logits=data[k])
+            # data[k] = dist.log_prob(action[k])
+            data[k] = torch.log(action[k] / (action[k].sum(axis=-1) + 1e-6) + 1e-6)
     return data
 
 

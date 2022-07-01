@@ -17,6 +17,7 @@ from dizoo.distar.config import distar_cfg
 from dizoo.distar.envs.fake_data import fake_rl_data_batch_with_last
 from dizoo.distar.policy.distar_policy import DIStarPolicy
 
+logging.getLogger().setLevel(logging.INFO)
 
 env_cfg = dict(
     actor=dict(job_type='train', ),
@@ -37,6 +38,9 @@ env_cfg = dict(
     ),
 )
 env_cfg = EasyDict(env_cfg)
+distar_cfg.exp_name = 'distar-multi-gpu-learn-seed0'
+# distar_cfg.policy.learn.multi_gpu = True
+distar_cfg.policy.other.league.active_players.main_player = 2
 
 
 def coordinator_mocker(cfg):
@@ -66,38 +70,32 @@ def actor_mocker(cfg, league):
     return _actor_mocker
 
 
-def main():
-    logging.getLogger().setLevel(logging.INFO)
+def learner():
     cfg = deepcopy(distar_cfg)
-    cfg.exp_name = 'distar-multi-gpu-learn-seed0'
-    cfg.policy.learn.multi_gpu = True
-    with DistContext():
-        rank = get_rank()
-        with task.start(async_mode=False, ctx=BattleContext()):
-
-            set_pkg_seed(cfg.seed, use_cuda=cfg.policy.cuda)
-            league = BaseLeague(cfg.policy.other.league)
-
-            if task.router.node_id == 2:
-                task.use(coordinator_mocker(cfg))
-                task.use(actor_mocker(cfg, league))
-            else:
-                cfg.policy.collect.unroll_len = 1
-                buffer_ = DequeBuffer(size=cfg.policy.other.replay_buffer.replay_buffer_size)
-                policy = DIStarPolicy(DIStarPolicy.default_config(), enable_field=['learn'])
-                player = league.active_players[task.router.node_id % len(league.active_players)]
-
-                task.use(LeagueLearnerCommunicator(cfg, policy.learn_mode, player))
-                # task.use(eps_greedy_handler(cfg))
-                # task.use(nstep_reward_enhancer(cfg))
-                task.use(data_pusher(cfg, buffer_))
-                task.use(OffPolicyLearner(cfg, policy.learn_mode, buffer_))
-
-            # if rank == 0:
-            #     task.use(CkptSaver(cfg, policy, train_freq=1000))
-            #     task.use(online_logger(record_train_iter=True))
-            task.run()
+    cfg.policy.collect.unroll_len = 1
+    set_pkg_seed(cfg.seed, use_cuda=cfg.policy.cuda)
+    league = BaseLeague(cfg.policy.other.league)
+    buffer_ = DequeBuffer(size=cfg.policy.other.replay_buffer.replay_buffer_size)
+    policy = DIStarPolicy(DIStarPolicy.default_config(), enable_field=['learn'])
+    
+    with DistContext(), task.start(async_mode=False, ctx=BattleContext()):
+        player = league.active_players[task.router.node_id % len(league.active_players)]
+        task.use(LeagueLearnerCommunicator(cfg, policy.learn_mode, player))
+        # task.use(eps_greedy_handler(cfg))
+        # task.use(nstep_reward_enhancer(cfg))
+        task.use(data_pusher(cfg, buffer_))
+        task.use(OffPolicyLearner(cfg, policy.learn_mode, buffer_))
+        # if rank == 0:
+        #     task.use(CkptSaver(cfg, policy, train_freq=1000))
+        #     task.use(online_logger(record_train_iter=True))
+        task.run()
 
 
-if __name__ == "__main__":
-    Parallel.runner(n_parallel_workers=3, protocol="tcp", topology="mesh")(main)
+def actor():
+    cfg = deepcopy(distar_cfg)
+    set_pkg_seed(cfg.seed, use_cuda=cfg.policy.cuda)
+    league = BaseLeague(cfg.policy.other.league)
+    with task.start(async_mode=False, ctx=BattleContext()):
+        task.use(coordinator_mocker(cfg))
+        task.use(actor_mocker(cfg, league))
+        task.run()

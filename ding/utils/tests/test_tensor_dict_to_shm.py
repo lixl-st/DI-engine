@@ -6,7 +6,7 @@ from ding.utils import shm_encode_with_schema, shm_decode, equal
 from dizoo.distar.envs import fake_rl_data_batch_with_last
 
 
-@pytest.mark.lxl
+@pytest.mark.unittest
 def test_shm_encode_decode():
     data = fake_rl_data_batch_with_last(unroll_len=64)
     encoding, schema = shm_encode_with_schema(data)
@@ -37,12 +37,12 @@ class ShmSpeedTest:
         self.p_decoding = pickle.loads(self.p_encoding)
 
 
-@pytest.mark.lxl
+@pytest.mark.benchmark
 def test_shm_encode_decode_speed():
     test = ShmSpeedTest()
 
-    print(timeit.repeat(test.encode, repeat=3, number=10))
-    print(timeit.repeat(test.decode, repeat=3, number=10))
+    print(timeit.repeat(test.encode, repeat=3, number=1))
+    print(timeit.repeat(test.decode, repeat=3, number=1))
 
-    # print(timeit.repeat(test.pickle_encode, repeat=3, number=10))
-    # print(timeit.repeat(test.pickle_load, repeat=3, number=10))
+    print(timeit.repeat(test.pickle_encode, repeat=3, number=1))
+    print(timeit.repeat(test.pickle_load, repeat=3, number=1))

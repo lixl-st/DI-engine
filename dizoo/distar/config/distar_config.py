@@ -108,7 +108,7 @@ distar_cfg = EasyDict(
                         'main_player': 2
                     },
                     'main_player': {
-                        'one_phase_step': 10,  # 20
+                        'one_phase_step': 20,
                         'branch_probs': {
                             'pfsp': 0.0,
                             'sp': 1.0
@@ -148,7 +148,7 @@ distar_cfg = EasyDict(
                 }
             },
             'type': 'ppo',
-            'cuda': False,
+            'cuda': True,
             'on_policy': True,
             'priority': False,
             'priority_IS_weight': False,

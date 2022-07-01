@@ -43,7 +43,7 @@ def actor_mocker(cfg, league):
     return _actor_mocker
 
 
-def _main():
+def main():
     logging.getLogger().setLevel(logging.INFO)
     cfg = deepcopy(distar_cfg)
     league = BaseLeague(cfg.policy.other.league)
@@ -63,13 +63,13 @@ def _main():
             task.use(LeagueLearnerCommunicator(cfg, policy.learn_mode, player))
             task.use(data_pusher(cfg, buffer_))
             task.use(OffPolicyLearner(cfg, policy.learn_mode, buffer_))
-        task.run(max_step=10000)
+        task.run(max_step=1000000)
 
 
 @pytest.mark.unittest
 def test_league_learner():
-    Parallel.runner(n_parallel_workers=4, protocol="tcp", topology="mesh")(_main)
+    Parallel.runner(n_parallel_workers=4, protocol="tcp", topology="mesh")(main)
 
 
 if __name__ == '__main__':
-    Parallel.runner(n_parallel_workers=4, protocol="tcp", topology="mesh")(_main)
+    Parallel.runner(n_parallel_workers=4, protocol="tcp", topology="mesh")(main)

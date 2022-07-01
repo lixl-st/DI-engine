@@ -9,6 +9,7 @@ from ding.framework import task, EventEnum
 from ding.framework.storage import FileStorage
 from ding.league.player import PlayerMeta
 from ding.utils import log_every_sec
+from ding.utils.pytorch_ddp_dist_helper import get_rank
 
 if TYPE_CHECKING:
     from ding.policy import Policy
@@ -28,12 +29,13 @@ class LeagueLearnerCommunicator:
 
     def __init__(self, cfg: dict, policy: "Policy", player: "ActivePlayer") -> None:
         self.cfg = cfg
+        self.rank = get_rank()
         self.cache = deque(maxlen=100)
         self.player = player
         self.player_id = player.player_id
         self.policy = policy
         self.prefix = '{}/ckpt'.format(cfg.exp_name)
-        if not os.path.exists(self.prefix):
+        if self.rank == 0 and not os.path.exists(self.prefix):
             os.makedirs(self.prefix)
         task.on(EventEnum.ACTOR_SEND_DATA.format(player=self.player_id), self._push_data)
 
@@ -51,10 +53,10 @@ class LeagueLearnerCommunicator:
         #     self.cache.append(data.train_data)
 
     def __call__(self, ctx: "Context"):
-        log_every_sec(logging.INFO, 5, "[Learner {}] pour data into the ctx".format(task.router.node_id))
         ctx.trajectories = list(self.cache)
         self.cache.clear()
         sleep(0.1)
+        log_every_sec(logging.INFO, 5, "[Learner {}] pour data into the ctx".format(task.router.node_id))
         yield
         log_every_sec(logging.INFO, 5, "[Learner {}] ctx.train_iter {}".format(task.router.node_id, ctx.train_iter))
         self.player.total_agent_step = ctx.train_iter
