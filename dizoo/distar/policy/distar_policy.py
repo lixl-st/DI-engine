@@ -3,6 +3,7 @@ from easydict import EasyDict
 import os.path as osp
 import torch
 from torch.optim import Adam
+import random
 
 from ding.model import model_wrap
 from ding.policy import Policy
@@ -352,6 +353,15 @@ class DIStarPolicy(Policy):
         self.optimizer.load_state_dict(_state_dict['optimizer'])
 
     def _load_state_dict_collect(self, _state_dict: Dict) -> None:
+        #TODO(zms): need to load state_dict after collect, which is very dirty and need to rewrite
+    
+        if 'map_name' in _state_dict:
+            # map_names.append(_state_dict['map_name'])
+            self.fake_reward_prob = _state_dict['fake_reward_prob']
+            # agent._z_path = state_dict['z_path']
+            self.z_idx = _state_dict['z_idx']
+        model_state_dict = {k: v for k, v in _state_dict['model'].items() if 'value_networks' not in k}
+        model_state_dict = {'model': model_state_dict}
         self._collect_model.load_state_dict(_state_dict['model'], strict=False)
 
     def _init_collect(self):
@@ -373,9 +383,23 @@ class DIStarPolicy(Policy):
         self.last_location = None  # [x, y]
         self.enemy_unit_type_bool = torch.zeros(NUM_UNIT_TYPES, dtype=torch.uint8)
 
-        race, requested_race, map_size, target_building_order, target_cumulative_stat, bo_location, target_z_loop = parse_new_game(
+        race, requested_race, map_size, target_building_order, target_cumulative_stat, bo_location, target_z_loop, z_type = parse_new_game(
             data, self.z_path, self.z_idx
         )
+        self.use_cum_reward = True
+        self.use_bo_reward = True
+        print('z_type')
+        print(z_type)
+        if z_type is not None:
+            if z_type == 2 or z_type == 3:
+                self.use_cum_reward = False
+            if z_type == 1 or z_type == 3:
+                self.use_bo_reward = False
+        # if random.random() > self.fake_reward_prob:
+        #     self.use_cum_reward = False
+        # if random.random() > self.fake_reward_prob:
+        #     self.use_bo_reward = False
+        
         self.race = race  # home_race
         self.requested_race = requested_race
         self.map_size = map_size
@@ -391,6 +415,8 @@ class DIStarPolicy(Policy):
 
     def _forward_collect(self, data):
         obs, game_info = self._data_preprocess_collect(data)
+        print(obs)
+        exit(0)
         obs = default_collate([obs])
         if self._cfg.cuda:
             obs = to_device(obs, self._device)
@@ -436,15 +462,20 @@ class DIStarPolicy(Policy):
         obs['scalar_info']['enemy_unit_type_bool'] = (
             self.enemy_unit_type_bool | obs['scalar_info']['enemy_unit_type_bool']
         ).to(torch.uint8)
-        if self.exceed_loop_flag:
-            obs['scalar_info']['cumulative_stat'] = self.target_cumulative_stat * 0 + self._cfg.zero_z_value
-            obs['scalar_info']['beginning_order'] = self.target_building_order * 0
-            obs['scalar_info']['bo_location'] = self.target_bo_location * 0
-        else:
-            obs['scalar_info']['cumulative_stat'] = self.target_cumulative_stat
-            obs['scalar_info']['beginning_order'] = self.target_building_order
-            obs['scalar_info']['bo_location'] = self.target_bo_location
 
+        obs['scalar_info']['beginning_order'] = self.target_building_order * (self.use_bo_reward & (not self.exceed_loop_flag))
+        obs['scalar_info']['bo_location'] = self.target_bo_location * (self.use_bo_reward & (not self.exceed_loop_flag))
+        
+        print(self.use_cum_reward)
+        print(not self.exceed_loop_flag)
+        if self.use_cum_reward and not self.exceed_loop_flag:
+            print('cumulative_stat')
+            obs['scalar_info']['cumulative_stat'] = self.target_cumulative_stat
+        else:
+            print('cumulative_stat * 0')
+            obs['scalar_info']['cumulative_stat'] = self.target_cumulative_stat * 0 + self._cfg.zero_z_value
+
+        exit(0)
         # update stat
         self.stat.update(self.last_action_type, data['action_result'][0], obs, game_step)
         return obs, game_info
