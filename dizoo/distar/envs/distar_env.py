@@ -217,6 +217,8 @@ def parse_new_game(data, z_path: str, z_idx: Optional[None] = List):
         mix_race = race + opponent_race
     if z_idx is not None:
         idx, z_type = random.choice(z_idx[map_name][mix_race][born_location_str])
+        # TODO(zms): just make test the same
+        idx, z_type = 35, 1
         z = z_data[map_name][mix_race][born_location_str][idx]
     else:
         z = random.choice(z_data[map_name][mix_race][born_location_str])
@@ -599,7 +601,7 @@ def transform_obs(obs, map_size, requested_races, padding_spatial=False, opponen
         index=enemy_unit_types.long(),
         src=torch.ones_like(enemy_unit_types, dtype=torch.uint8)
     )
-
+    
     # game info
     game_info['action_result'] = [o.result for o in obs.action_errors]
     game_info['game_loop'] = obs.observation.game_loop

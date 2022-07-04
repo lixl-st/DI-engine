@@ -388,8 +388,6 @@ class DIStarPolicy(Policy):
         )
         self.use_cum_reward = True
         self.use_bo_reward = True
-        print('z_type')
-        print(z_type)
         if z_type is not None:
             if z_type == 2 or z_type == 3:
                 self.use_cum_reward = False
@@ -415,8 +413,6 @@ class DIStarPolicy(Policy):
 
     def _forward_collect(self, data):
         obs, game_info = self._data_preprocess_collect(data)
-        print(obs)
-        exit(0)
         obs = default_collate([obs])
         if self._cfg.cuda:
             obs = to_device(obs, self._device)
@@ -466,16 +462,11 @@ class DIStarPolicy(Policy):
         obs['scalar_info']['beginning_order'] = self.target_building_order * (self.use_bo_reward & (not self.exceed_loop_flag))
         obs['scalar_info']['bo_location'] = self.target_bo_location * (self.use_bo_reward & (not self.exceed_loop_flag))
         
-        print(self.use_cum_reward)
-        print(not self.exceed_loop_flag)
         if self.use_cum_reward and not self.exceed_loop_flag:
-            print('cumulative_stat')
             obs['scalar_info']['cumulative_stat'] = self.target_cumulative_stat
         else:
-            print('cumulative_stat * 0')
             obs['scalar_info']['cumulative_stat'] = self.target_cumulative_stat * 0 + self._cfg.zero_z_value
 
-        exit(0)
         # update stat
         self.stat.update(self.last_action_type, data['action_result'][0], obs, game_step)
         return obs, game_info
