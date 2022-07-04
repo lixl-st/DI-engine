@@ -225,7 +225,7 @@ def parse_new_game(data, z_path: str, z_idx: Optional[None] = List):
         target_building_order, target_cumulative_stat, bo_location, target_z_loop, z_type = z
     else:
         target_building_order, target_cumulative_stat, bo_location, target_z_loop = z
-    return race, requested_races, map_size, target_building_order, target_cumulative_stat, bo_location, target_z_loop
+    return race, requested_races, map_size, target_building_order, target_cumulative_stat, bo_location, target_z_loop, z_type
 
 
 class FeatureUnit(enum.IntEnum):
