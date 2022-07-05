@@ -73,7 +73,61 @@ def shm_decode(encoding, schema):
     return decoding
 
 
-def equal(data1, data2, check_dict_order=True, strict_dtype=False):
+def equal(data1, data2, check_dict_order=True, strict_dtype=False, parent_key=None):
+    if type(data1) != type(data2):
+        print(parent_key)
+        # print("data1: {} {}".format(parent_key, data1))
+        # print("data2: {} {}".format(parent_key, data2))
+        return False
+    if isinstance(data1, torch.Tensor):
+        if not strict_dtype:
+            data1 = data1.float()
+            data2 = data2.float()
+        if data1.dtype != data2.dtype:
+            print("data type does not match! data1({}), data2({})".format(data1.dtype, data2.dtype))
+            # print("data1: {} {}".format(parent_key, data1))
+            # print("data2: {} {}".format(parent_key, data2))
+            return False
+        if data1.equal(data2):
+            return True
+        else:
+            print("value not match")
+            print("data1: {}".format(parent_key))
+            # print("data1: {} {}".format(parent_key, data1))
+            # print("data2: {} {}".format(parent_key, data2))
+            return False
+    elif isinstance(data1, dict):
+        key_set1 = data1.keys()
+        key_set2 = data2.keys()
+        if check_dict_order and key_set1 != key_set2:
+            print("key sequence not match!")
+            # print("data1: {}".format(data1))
+            # print("data2: {}".format(data2))
+            return False
+        elif set(key_set1) != set(key_set2):
+            print("key set not match!")
+            # print("data1: {}".format(data1))
+            # print("data2: {}".format(data2))
+            return False
+        for key in key_set1:
+            if equal(data1[key], data2[key], check_dict_order, strict_dtype, key):
+                print("passed:", key)
+            else:
+                print("!!!!!!! not match:", key)
+                return False
+        return True
+    elif isinstance(data1, (tuple, list)):
+        if len(data1) != len(data2):
+            print("list length does not match!")
+            # print("data1: {}".format(data1))
+            # print("data2: {}".format(data2))
+            return False
+        return all([equal(data1[i], data2[i], check_dict_order, strict_dtype, parent_key) for i in range(len(data1))])
+    else:
+        raise ValueError("not supported dtype! {}".format(data1))
+
+
+def equal_v0(data1, data2, check_dict_order=True, strict_dtype=False):
     if type(data1) != type(data2):
         return False
     if isinstance(data1, torch.Tensor):

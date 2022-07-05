@@ -1,6 +1,9 @@
+import pickle
+from textwrap import indent
 from typing import Dict, Optional, List
 from easydict import EasyDict
 import os.path as osp
+import json
 import torch
 from torch.optim import Adam
 import random
@@ -12,6 +15,7 @@ from ding.rl_utils import td_lambda_data, td_lambda_error, vtrace_data_with_rho,
     upgo_data, upgo_error
 from ding.utils import EasyTimer
 from ding.utils.data import default_collate, default_decollate
+from ding.utils.tensor_dict_to_shm import equal, shm_encode_with_schema
 from dizoo.distar.model import Model
 from dizoo.distar.envs import NUM_UNIT_TYPES, ACTIONS, NUM_CUMULATIVE_STAT_ACTIONS, DEFAULT_SPATIAL_SIZE, Stat, parse_new_game, transform_obs
 from .utils import collate_fn_learn, kl_error, entropy_error
@@ -157,6 +161,8 @@ class DIStarPolicy(Policy):
         inputs = collate_fn_learn(inputs)
         if self._cfg.cuda:
             inputs = to_device(inputs, self._device)
+            
+        self._learn_model.train()
 
         # =============
         # model forward
@@ -415,12 +421,11 @@ class DIStarPolicy(Policy):
 
     def _forward_collect(self, data):
         obs, game_info = self._data_preprocess_collect(data)
-        print(obs)
-        exit(0)
         obs = default_collate([obs])
         if self._cfg.cuda:
             obs = to_device(obs, self._device)
 
+        self._collect_model.eval()
         with torch.no_grad():
             policy_output = self._collect_model.compute_logp_action(**obs)
 
@@ -475,7 +480,6 @@ class DIStarPolicy(Policy):
             print('cumulative_stat * 0')
             obs['scalar_info']['cumulative_stat'] = self.target_cumulative_stat * 0 + self._cfg.zero_z_value
 
-        exit(0)
         # update stat
         self.stat.update(self.last_action_type, data['action_result'][0], obs, game_step)
         return obs, game_info

@@ -5,6 +5,7 @@ from dizoo.distar.envs import get_fake_rl_trajectory, get_fake_env_reset_data, g
 
 import torch
 import random
+from ding.utils import set_pkg_seed
 
 
 @pytest.mark.envtest
@@ -33,7 +34,7 @@ class TestDIStarPolicy:
         # print(data)
 
 if __name__ == '__main__':
-    random.seed(233)
+    set_pkg_seed(0, use_cuda=False)
     torch.set_printoptions(profile="full")
     test = TestDIStarPolicy()
     test.test_forward_collect()

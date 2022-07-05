@@ -216,7 +216,8 @@ def parse_new_game(data, z_path: str, z_idx: Optional[None] = List):
     else:
         mix_race = race + opponent_race
     if z_idx is not None:
-        idx, z_type = random.choice(z_idx[map_name][mix_race][born_location_str])
+        # idx, z_type = random.choice(z_idx[map_name][mix_race][born_location_str])
+        idx, z_type = 35, 1
         z = z_data[map_name][mix_race][born_location_str][idx]
     else:
         z = random.choice(z_data[map_name][mix_race][born_location_str])
