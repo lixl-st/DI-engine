@@ -161,7 +161,7 @@ class DIStarPolicy(Policy):
         inputs = collate_fn_learn(inputs)
         if self._cfg.cuda:
             inputs = to_device(inputs, self._device)
-            
+
         self._learn_model.train()
 
         # =============

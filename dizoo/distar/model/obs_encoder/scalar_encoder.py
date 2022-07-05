@@ -1,13 +1,10 @@
 from typing import Dict
-from collections import OrderedDict
 from torch import Tensor
 import torch
-import pickle
 import torch.nn as nn
 import torch.nn.functional as F
 from ding.torch_utils import fc_block, build_activation, Transformer
 from .entity_encoder import get_binary_embed_mat
-from ding.utils import equal
 
 
 def compute_denominator(x: torch.Tensor, dim: int) -> torch.Tensor:
@@ -58,10 +55,6 @@ class BeginningBuildOrderEncoder(nn.Module):
         x = torch.cat([x, location_x, location_y], dim=2)
         assert len(x.shape) == 3
         x = self.transformer(x)
-        with open("/Users/lixuelin/code/demo/debug_file", "wb") as f:
-            pickle.dump(x, f)
-        print(self.transformer.state_dict)
-        exit(0)
         x = x.mean(dim=1)
         x = self.embedd_fc(x)
         return x

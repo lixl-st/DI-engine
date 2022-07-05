@@ -34,7 +34,7 @@ class TestDIStarPolicy:
         # print(data)
 
 if __name__ == '__main__':
-    set_pkg_seed(0, use_cuda=False)
+    set_pkg_seed(2, use_cuda=False)
     torch.set_printoptions(profile="full")
     test = TestDIStarPolicy()
     test.test_forward_collect()

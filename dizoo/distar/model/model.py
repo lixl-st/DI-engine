@@ -5,6 +5,7 @@ from torch import Tensor
 import os.path as osp
 import torch
 import torch.nn as nn
+import pickle
 
 from ding.utils import read_yaml_config, deep_merge_dicts
 from ding.torch_utils import detach_grad, script_lstm
@@ -77,6 +78,9 @@ class Model(nn.Module):
         # print('----------')
         # exit(0)
         lstm_output, out_state = self.core_lstm(lstm_input.unsqueeze(dim=0), hidden_state)
+        with open("/Users/lixuelin/code/demo/debug_file", "wb") as f:
+            pickle.dump(lstm_output, f)
+        exit(0)
         action_info, selected_units_num, logit, extra_units = self.policy(
             lstm_output.squeeze(dim=0), entity_embeddings, map_skip, scalar_context, entity_num
         )

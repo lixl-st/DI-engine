@@ -2,6 +2,7 @@ from typing import List, Dict, Optional
 from torch import Tensor
 import torch
 import torch.nn as nn
+import pickle
 
 from dizoo.distar.envs import SELECTED_UNITS_MASK
 from .head import DelayHead, QueuedHead, SelectedUnitsHead, TargetUnitHead, LocationHead, ActionTypeHead
