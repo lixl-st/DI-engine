@@ -158,6 +158,8 @@ class DIStarPolicy(Policy):
         if self._cfg.cuda:
             inputs = to_device(inputs, self._device)
 
+        self._learn_model.train()
+
         # =============
         # model forward
         # =============
@@ -417,6 +419,7 @@ class DIStarPolicy(Policy):
         if self._cfg.cuda:
             obs = to_device(obs, self._device)
 
+        self._collect_model.eval()
         with torch.no_grad():
             policy_output = self._collect_model.compute_logp_action(**obs)
 

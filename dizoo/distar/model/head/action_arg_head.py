@@ -19,7 +19,8 @@ import torch.nn.functional as F
 from ding.torch_utils import fc_block, conv2d_block, deconv2d_block, build_activation, ResBlock, NearestUpsample, \
     BilinearUpsample, sequence_mask, GatedConvResBlock, AttentionPool, script_lstm
 from dizoo.distar.envs import MAX_ENTITY_NUM, MAX_SELECTED_UNITS_NUM
-
+import pickle
+from ding.utils.tensor_dict_to_shm import equal
 
 class DelayHead(nn.Module):
 
@@ -400,6 +401,10 @@ class LocationHead(nn.Module):
                 x = self.res[i](x, x)
             else:
                 x = self.res[i](x)
+        with open("C:/Users/hjs/debug_file", "rb") as f:
+            zh_x = pickle.load(f)
+            print(equal(zh_x, x))
+        exit(0)
         for i, layer in enumerate(self.upsample):
             if self.cfg.upsample_type == 'nearest':
                 x = F.interpolate(x, scale_factor=2., mode='nearest')

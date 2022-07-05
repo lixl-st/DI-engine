@@ -13,6 +13,8 @@ from .encoder import Encoder
 from .obs_encoder.value_encoder import ValueEncoder
 from .policy import Policy
 from .value import ValueBaseline
+import pickle
+from ding.utils.tensor_dict_to_shm import equal
 
 alphastar_model_default_config = read_yaml_config(osp.join(osp.dirname(__file__), "actor_critic_default_config.yaml"))
 
@@ -67,15 +69,6 @@ class Model(nn.Module):
     ):
         lstm_input, scalar_context, baseline_feature, entity_embeddings, map_skip = \
             self.encoder(spatial_info, entity_info, scalar_info, entity_num)
-        # print(lstm_input)
-        # print('----------')
-        # print(scalar_context)
-        # print('----------')
-        # print(entity_embeddings)
-        # print('----------')
-        # print(map_skip)
-        # print('----------')
-        # exit(0)
         lstm_output, out_state = self.core_lstm(lstm_input.unsqueeze(dim=0), hidden_state)
         action_info, selected_units_num, logit, extra_units = self.policy(
             lstm_output.squeeze(dim=0), entity_embeddings, map_skip, scalar_context, entity_num
@@ -198,3 +191,11 @@ class Model(nn.Module):
             lstm_output, entity_embeddings, map_skip, scalar_context, entity_num, action_info, selected_units_num
         )
         return logits, action_info, out_state
+
+    def load_state_dict(self, state_dict, strict: bool = True):
+        for key in list(state_dict.keys()):
+            new = key
+            if "transformer" in key:
+                new = key.replace('layers', 'main').replace('mlp.1', 'mlp.2')
+            state_dict[new] = state_dict.pop(key)
+        return super().load_state_dict(state_dict, strict)

@@ -5,6 +5,8 @@ import torch.nn as nn
 
 from dizoo.distar.envs import SELECTED_UNITS_MASK
 from .head import DelayHead, QueuedHead, SelectedUnitsHead, TargetUnitHead, LocationHead, ActionTypeHead
+import pickle
+from ding.utils.tensor_dict_to_shm import equal
 
 
 class Policy(nn.Module):
