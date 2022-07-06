@@ -85,7 +85,7 @@ def build_activation(activation: str, inplace: bool = None) -> nn.Module:
     if inplace is not None:
         assert activation == 'relu', 'inplace argument is not compatible with {}'.format(activation)
     else:
-        inplace = False
+        inplace = True
     act_func = {'relu': nn.ReLU(inplace=inplace), 'glu': GLU, 'prelu': nn.PReLU(), 'swish': Swish()}
     if activation in act_func.keys():
         return act_func[activation]

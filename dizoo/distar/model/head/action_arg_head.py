@@ -20,7 +20,6 @@ from ding.torch_utils import fc_block, conv2d_block, deconv2d_block, build_activ
     BilinearUpsample, sequence_mask, GatedConvResBlock, AttentionPool, script_lstm
 from dizoo.distar.envs import MAX_ENTITY_NUM, MAX_SELECTED_UNITS_NUM
 
-
 class DelayHead(nn.Module):
 
     def __init__(self, cfg):

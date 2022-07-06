@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from typing import Dict, Tuple, List
 from torch import Tensor
 
@@ -189,3 +188,13 @@ class Model(nn.Module):
             lstm_output, entity_embeddings, map_skip, scalar_context, entity_num, action_info, selected_units_num
         )
         return logits, action_info, out_state
+
+    def load_state_dict(self, state_dict, strict: bool = True):
+        for key in list(state_dict.keys()):
+            new = key
+            if "transformer" in key:
+                new = key.replace('layers', 'main').replace('mlp.1', 'mlp.2')
+            if "location_head" in key:
+                new = key.replace('GateWeightG', 'gate').replace('UpdateSP','update_sp')
+            state_dict[new] = state_dict.pop(key)
+        return super().load_state_dict(state_dict, strict)
