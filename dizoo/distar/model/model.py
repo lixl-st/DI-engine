@@ -13,8 +13,6 @@ from .encoder import Encoder
 from .obs_encoder.value_encoder import ValueEncoder
 from .policy import Policy
 from .value import ValueBaseline
-import pickle
-from ding.utils.tensor_dict_to_shm import equal
 
 alphastar_model_default_config = read_yaml_config(osp.join(osp.dirname(__file__), "actor_critic_default_config.yaml"))
 
@@ -197,5 +195,7 @@ class Model(nn.Module):
             new = key
             if "transformer" in key:
                 new = key.replace('layers', 'main').replace('mlp.1', 'mlp.2')
+            if "location_head" in key:
+                new = key.replace('GateWeightG', 'gate').replace('UpdateSP','update_sp')
             state_dict[new] = state_dict.pop(key)
         return super().load_state_dict(state_dict, strict)

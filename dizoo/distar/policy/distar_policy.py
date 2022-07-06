@@ -15,6 +15,8 @@ from ding.utils.data import default_collate, default_decollate
 from dizoo.distar.model import Model
 from dizoo.distar.envs import NUM_UNIT_TYPES, ACTIONS, NUM_CUMULATIVE_STAT_ACTIONS, DEFAULT_SPATIAL_SIZE, Stat, parse_new_game, transform_obs
 from .utils import collate_fn_learn, kl_error, entropy_error
+import pickle
+from ding.utils.tensor_dict_to_shm import equal
 
 
 class DIStarPolicy(Policy):
