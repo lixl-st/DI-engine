@@ -83,8 +83,8 @@ def equal(data1, data2, check_dict_order=True, strict_dtype=False):
             return False
         return data1.equal(data2)
     elif isinstance(data1, dict):
-        key_set1 = data1.keys()
-        key_set2 = data2.keys()
+        key_set1 = list(data1.keys())
+        key_set2 = list(data2.keys())
         if check_dict_order and key_set1 != key_set2:
             return False
         elif set(key_set1) != set(key_set2):

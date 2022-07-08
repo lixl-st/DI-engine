@@ -1,4 +1,6 @@
-from typing import Dict, Optional, List
+from copy import deepcopy
+from functools import partial
+from typing import Deque, Dict, Optional, List
 from easydict import EasyDict
 import torch
 from torch.optim import Adam
@@ -11,8 +13,13 @@ from ding.rl_utils import td_lambda_data, td_lambda_error, vtrace_data_with_rho,
 from ding.utils import EasyTimer
 from ding.utils.data import default_collate, default_decollate
 from dizoo.distar.model import Model
-from dizoo.distar.envs import NUM_UNIT_TYPES, ACTIONS, NUM_CUMULATIVE_STAT_ACTIONS, DEFAULT_SPATIAL_SIZE, Stat, parse_new_game, transform_obs
-from .utils import collate_fn_learn, kl_error, entropy_error
+from dizoo.distar.envs import NUM_UNIT_TYPES, ACTIONS, NUM_CUMULATIVE_STAT_ACTIONS, DEFAULT_SPATIAL_SIZE, \
+    Stat, parse_new_game, transform_obs, BEGINNING_ORDER_LENGTH, BEGINNING_ORDER_ACTIONS, CUMULATIVE_STAT_ACTIONS,\
+    UNIT_TO_CUM, UNIT_ABILITY_TO_ACTION, UPGRADE_TO_CUM, QUEUE_ACTIONS
+
+from .utils import collate_fn_learn, compute_battle_score, kl_error, entropy_error, levenshtein_distance, l2_distance,\
+    hamming_distance
+
 
 
 class DIStarPolicy(Policy):
@@ -382,6 +389,13 @@ class DIStarPolicy(Policy):
         self.last_targeted_unit_tag = None
         self.last_location = None  # [x, y]
         self.enemy_unit_type_bool = torch.zeros(NUM_UNIT_TYPES, dtype=torch.uint8)
+        self._behaviour_building_order = [] # idx in BEGINNING_ORDER_ACTIONS
+        self._behaviour_bo_location = []
+        self._bo_zergling_count = 0
+        # self._model_last_iter = 0
+        self.output = None
+        self.obs = None
+        self.hidden_state = None
 
         race, requested_race, map_size, target_building_order, target_cumulative_stat, bo_location, target_z_loop, z_type = parse_new_game(
             data, self.z_path, self.z_idx
@@ -413,6 +427,7 @@ class DIStarPolicy(Policy):
 
     def _forward_collect(self, data):
         obs, game_info = self._data_preprocess_collect(data)
+        self.obs = obs
         obs = default_collate([obs])
         if self._cfg.cuda:
             obs = to_device(obs, self._device)
@@ -478,6 +493,8 @@ class DIStarPolicy(Policy):
         self.last_action_type = data['action_info']['action_type']
         self.last_delay = data['action_info']['delay']
         self.last_queued = data['action_info']['queued']
+        self.hidden_state = data['hidden_state']
+        self.output = data
         action_type = self.last_action_type.item()
         action_attr = ACTIONS[action_type]
 
@@ -517,11 +534,180 @@ class DIStarPolicy(Policy):
 
         return data
 
-    def _process_transition(self, obs, policy_output, timestep):
-        return {
-            'obs': obs,
-            'action': policy_output['action_info'],
+    def _process_transition(self, next_obs, reward, done):
+        # behavior_z = self.get_behavior_z()
+        # bo_reward, cum_reward, battle_reward = self.update_fake_reward(next_obs)
+        obs = self.obs
+
+        action_info = deepcopy(self.output['action_info'])
+        mask = dict()
+        mask['actions_mask'] = deepcopy(
+            {k: val for k, val in ACTIONS[action_info['action_type'].item()].items() if k not in ['name', 'goal','func_id','general_ability_id', 'game_id']})
+        if self._cfg.only_cum_action_kl:
+            mask['cum_action_mask'] = torch.tensor(0.0, dtype=torch.float)
+        else:
+            mask['cum_action_mask'] = torch.tensor(1.0, dtype=torch.float)
+        if self.use_bo_reward:
+            mask['build_order_mask'] = torch.tensor(1.0, dtype=torch.float)
+        else:
+            mask['build_order_mask'] = torch.tensor(0.0, dtype=torch.float)
+        if self.use_cum_reward:
+            mask['built_unit_mask'] = torch.tensor(1.0, dtype=torch.float)
+            mask['cum_action_mask'] = torch.tensor(1.0, dtype=torch.float)
+        else:
+            mask['built_unit_mask'] = torch.tensor(0.0, dtype=torch.float)
+        selected_units_num = self.output['selected_units_num']
+        for k, v in mask['actions_mask'].items():
+            mask['actions_mask'][k] = torch.tensor(v, dtype=torch.long)
+        step_data = {
+            # 'map_name': self._map_name,
+            'spatial_info': obs['spatial_info'],
+            # 'model_last_iter': torch.tensor(self._model_last_iter, dtype=torch.float),
+            'entity_info': obs['entity_info'],
+            'scalar_info': obs['scalar_info'],
+            'entity_num': obs['entity_num'],
+            'selected_units_num': selected_units_num,
+            'hidden_state': self._hidden_state_backup,
+            'action_info': action_info,
+            'behaviour_logp': self.output['action_logp'],
+            'reward': {
+                'winloss': torch.tensor(reward, dtype=torch.float),
+                # TODO: need to update_fake_reward
+                'build_order': torch.zeros(size=(), dtype=torch.float),
+                'built_unit': torch.zeros(size=(), dtype=torch.float),
+                'battle': torch.zeros(size=(), dtype=torch.float),
+            },
+            # 'step': torch.tensor(self._game_step, dtype=torch.float),
+            'mask': mask,
         }
+        # if self._cfg.use_value_feature:
+        #     step_data['value_feature'] = obs['value_feature']
+        #     step_data['value_feature'].update(behavior_z)
+        self._hidden_state_backup = self.hidden_state
+
+        return step_data
+    
+    def fake_last_step(self, next_obs, done):
+        if done:
+            obs = deepcopy(self.obs)
+        else:
+            self.obs, _ = self._data_preprocess_collect(next_obs)
+            obs = deepcopy(self.obs)
+        return {
+            # 'map_name': self._map_name,
+            'spatial_info': obs['spatial_info'],
+            'entity_info': obs['entity_info'],
+            'scalar_info': obs['scalar_info'],
+            'entity_num': obs['entity_num'],
+            'hidden_state': self.hidden_state,
+        }
+
+    
+    def get_behavior_z(self):
+        bo = self._behaviour_building_order + [0] * (BEGINNING_ORDER_LENGTH - len(self._behaviour_building_order))
+        bo_location = self._behaviour_bo_location + [0] * (BEGINNING_ORDER_LENGTH - len(self._behaviour_bo_location))
+        return {'beginning_order': torch.as_tensor(bo, dtype=torch.long), 'bo_location': torch.as_tensor(bo_location, dtype=torch.long),
+                'cumulative_stat': torch.as_tensor(self._behaviour_cumulative_stat, dtype=torch.bool).long()}
+
+
+    # def _update_fake_reward(self, next_obs):
+    #     action_type = self.last_action_type
+    #     location = self.last_location
+    #     bo_reward = torch.zeros(size=(), dtype=torch.float)
+    #     cum_reward = torch.zeros(size=(), dtype=torch.float)
+
+    #     battle_score = compute_battle_score(next_obs['raw_obs'])
+    #     opponent_battle_score = compute_battle_score(next_obs['opponent_obs'])
+    #     battle_reward = battle_score - self._game_info['battle_score'] - (opponent_battle_score - self._game_info['opponent_battle_score'])
+    #     battle_reward = torch.tensor(battle_reward, dtype=torch.float) / self._battle_norm
+
+    #     if self.exceed_loop_flag:
+    #         return bo_reward, cum_reward, battle_reward
+
+    #     if action_type in BEGINNING_ORDER_ACTIONS and next_obs['action_result'][0] == 1:
+    #         if action_type == 322:
+    #             self._bo_zergling_count += 1
+    #             if self._bo_zergling_count > 8:
+    #                 return bo_reward, cum_reward, battle_reward
+    #         order_index = BEGINNING_ORDER_ACTIONS.index(action_type)
+    #         if order_index == 39 and 39 not in self._target_building_order:  # ignore spinecrawler
+    #             return bo_reward, cum_reward, battle_reward
+    #         if len(self._behaviour_building_order) < len(self._target_building_order):
+    #             # only consider bo_reward if behaviour size < target size
+    #             self._behaviour_building_order.append(order_index)
+    #             if ACTIONS[action_type]['target_location']:
+    #                 self._behaviour_bo_location.append(location.item())
+    #             else:
+    #                 self._behaviour_bo_location.append(0)
+    #             if self.use_bo_reward:
+    #                 if self._clip_bo:
+    #                     tz = self._target_building_order[:len(self._behaviour_building_order)]
+    #                     tz_lo = self._target_bo_location[:len(self._behaviour_building_order)]
+    #                 else:
+    #                     tz = self._target_building_order
+    #                     tz_lo = self._target_bo_location
+    #                 new_bo_dist = - levenshtein_distance(torch.as_tensor(self._behaviour_building_order, dtype=torch.int),
+    #                                                    torch.as_tensor(tz, dtype=torch.int),
+    #                                                    torch.as_tensor(self._behaviour_bo_location, dtype=torch.int),
+    #                                                    torch.as_tensor(tz_lo, dtype=torch.int),
+    #                                                    partial(l2_distance, spatial_x=DEFAULT_SPATIAL_SIZE[1])
+    #                                                    ) / self._bo_norm
+    #                 bo_reward = new_bo_dist - self._old_bo_reward
+    #                 self._old_bo_reward = new_bo_dist
+
+    #     if self._cum_type == 'observation':
+    #         cum_flag = True
+    #         for u in next_obs['raw_obs'].observation.raw_data.units:
+    #             if u.alliance == 1 and u.unit_type in [59, 18, 86]:  # ignore first base
+    #                 if u.pos.x == self._born_location[0] and u.pos.y == self._born_location[1]:
+    #                     continue
+    #             if u.alliance == 1 and u.build_progress == 1 and UNIT_TO_CUM[u.unit_type] != -1:
+    #                 self._behaviour_cumulative_stat[UNIT_TO_CUM[u.unit_type]] = 1
+    #         for u in next_obs['raw_obs'].observation.raw_data.player.upgrade_ids:
+    #             if UPGRADE_TO_CUM[u] != -1:
+    #                 self._behaviour_cumulative_stat[UPGRADE_TO_CUM[u]] = 1
+    #                 from distar.pysc2.lib.upgrades import Upgrades
+    #                 for up in Upgrades:
+    #                     if up.value == u:
+    #                         name = up.name
+    #                         break
+    #     elif self._cum_type == 'action':
+    #         action_name = ACTIONS[action_type]['name']
+    #         action_info = self.output['action_info']
+    #         cum_flag = False
+    #         if action_name == 'Cancel_quick' or action_name == 'Cancel_Last_quick':
+    #             unit_index = action_info['selected_units'][0].item()
+    #             order_len = self._observation['entity_info']['order_length'][unit_index]
+    #             if order_len == 0:
+    #                 action_index = 0
+    #             elif order_len == 1:
+    #                 action_index = UNIT_ABILITY_TO_ACTION[self._observation['entity_info']['order_id_0'][unit_index].item()]
+    #             elif order_len > 1:
+    #                 order_str = 'order_id_{}'.format(order_len - 1)
+    #                 action_index = QUEUE_ACTIONS[self._observation['entity_info'][order_str][unit_index].item() - 1]
+    #             print(self.player_id, action_name, order_len.item(), 'cancel action:', ACTIONS[action_index]['name'])
+    #             if action_index in CUMULATIVE_STAT_ACTIONS:
+    #                 cum_flag = True
+    #                 cum_index = CUMULATIVE_STAT_ACTIONS.index(action_index)
+    #                 self._behaviour_cumulative_stat[cum_index] = max(0, self._behaviour_cumulative_stat[cum_index] - 1)
+
+    #         if action_type in CUMULATIVE_STAT_ACTIONS:
+    #             cum_flag = True
+    #             cum_index = CUMULATIVE_STAT_ACTIONS.index(action_type)
+    #             self._behaviour_cumulative_stat[cum_index] += 1
+    #     else:
+    #         raise NotImplementedError
+
+    #     if self.use_cum_reward and cum_flag and (self._cum_type == 'observation' or next_obs['action_result'][0] == 1):
+    #         new_cum_reward = -hamming_distance(
+    #             torch.as_tensor(self._behaviour_cumulative_stat, dtype=torch.bool),
+    #             torch.as_tensor(self._target_cumulative_stat, dtype=torch.bool)) / self._cum_norm
+    #         cum_reward = (new_cum_reward - self._old_cum_reward) * self._get_time_factor(self._game_step)
+    #         self._old_cum_reward = new_cum_reward
+    #     self._total_bo_reward += bo_reward
+    #     self._total_cum_reward += cum_reward
+    #     return bo_reward, cum_reward, battle_reward
+
 
     def _get_train_sample(self):
         pass
