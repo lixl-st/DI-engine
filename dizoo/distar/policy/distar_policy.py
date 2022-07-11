@@ -596,11 +596,11 @@ class DIStarPolicy(Policy):
         return step_data
     
     def fake_last_step(self, next_obs, done):
-        if done:
-            obs = deepcopy(self.obs)
-        else:
-            self.obs, _ = self._data_preprocess_collect(next_obs)
-            obs = deepcopy(self.obs)
+        if not done:
+            if not next_obs['raw_obs'].observation:
+                return None
+            self.obs = self._data_preprocess_collect(next_obs)[0]
+        obs = deepcopy(self.obs)
         return {
             # 'map_name': self._map_name,
             'spatial_info': obs['spatial_info'],
