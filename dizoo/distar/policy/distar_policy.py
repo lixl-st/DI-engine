@@ -4,6 +4,7 @@ from typing import Deque, Dict, Optional, List
 from easydict import EasyDict
 import torch
 from torch.optim import Adam
+import random
 
 from ding.model import model_wrap
 from ding.policy import Policy
@@ -110,11 +111,11 @@ class DIStarPolicy(Policy):
         ),
         grad_clip=dict(threshold=1.0, ),
         # collect
-        use_value_feature=False,  # whether to use value feature, this must be False when play against bot
+        use_value_feature=True,  # TODO(zms): whether to use value feature, this must be False when play against bot
         zero_z_exceed_loop=True,  # set Z to 0 if game passes the game loop in Z
         zero_z_value=1,
         extra_units=True,  # selcet extra units if selected units exceed 64
-        z_path='7map_filter_spine.json'
+        z_path='7map_filter_spine.json',
     )
 
     def _create_model(
@@ -361,15 +362,14 @@ class DIStarPolicy(Policy):
 
     def _load_state_dict_collect(self, _state_dict: Dict) -> None:
         #TODO(zms): need to load state_dict after collect, which is very dirty and need to rewrite
-    
         if 'map_name' in _state_dict:
             # map_names.append(_state_dict['map_name'])
             self.fake_reward_prob = _state_dict['fake_reward_prob']
             # agent._z_path = state_dict['z_path']
             self.z_idx = _state_dict['z_idx']
-        model_state_dict = {k: v for k, v in _state_dict['model'].items() if 'value_networks' not in k}
-        model_state_dict = {'model': model_state_dict}
-        self._collect_model.load_state_dict(_state_dict['model'], strict=False)
+
+        _state_dict = {k: v for k, v in _state_dict['model'].items() if 'value_networks' not in k}
+        self._collect_model.load_state_dict(_state_dict, strict=False)
 
     def _init_collect(self):
         self._collect_model = model_wrap(self._model, 'base')
@@ -407,11 +407,12 @@ class DIStarPolicy(Policy):
                 self.use_cum_reward = False
             if z_type == 1 or z_type == 3:
                 self.use_bo_reward = False
-        # if random.random() > self.fake_reward_prob:
-        #     self.use_cum_reward = False
-        # if random.random() > self.fake_reward_prob:
-        #     self.use_bo_reward = False
-        
+
+        if random.random() > self.fake_reward_prob:
+            self.use_cum_reward = False
+        if random.random() > self.fake_reward_prob:
+            self.use_bo_reward = False
+
         self.race = race  # home_race
         self.requested_race = requested_race
         self.map_size = map_size
@@ -444,7 +445,13 @@ class DIStarPolicy(Policy):
 
     def _data_preprocess_collect(self, data):
         if self._cfg.use_value_feature:
-            obs = transform_obs(data['raw_obs'], self.map_size, self.requested_race, padding_spatial=True, opponent_obs=data['opponent_obs'])
+            obs = transform_obs(
+                data['raw_obs'],
+                self.map_size,
+                self.requested_race,
+                padding_spatial=True,
+                opponent_obs=data['opponent_obs']
+            )
         else:
             obs = transform_obs(data['raw_obs'], self.map_size, self.requested_race, padding_spatial=True)
 
@@ -475,9 +482,10 @@ class DIStarPolicy(Policy):
             self.enemy_unit_type_bool | obs['scalar_info']['enemy_unit_type_bool']
         ).to(torch.uint8)
 
-        obs['scalar_info']['beginning_order'] = self.target_building_order * (self.use_bo_reward & (not self.exceed_loop_flag))
+        obs['scalar_info']['beginning_order'
+                           ] = self.target_building_order * (self.use_bo_reward & (not self.exceed_loop_flag))
         obs['scalar_info']['bo_location'] = self.target_bo_location * (self.use_bo_reward & (not self.exceed_loop_flag))
-        
+
         if self.use_cum_reward and not self.exceed_loop_flag:
             obs['scalar_info']['cumulative_stat'] = self.target_cumulative_stat
         else:

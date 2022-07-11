@@ -25,7 +25,7 @@ class DelayHead(nn.Module):
     def __init__(self, cfg):
         super(DelayHead, self).__init__()
         self.cfg = cfg
-        self.act = build_activation(self.cfg.activation)
+        self.act = build_activation(self.cfg.activation, inplace=True)
         self.fc1 = fc_block(self.cfg.input_dim, self.cfg.decode_dim, activation=self.act, norm_type=None)
         self.fc2 = fc_block(self.cfg.decode_dim, self.cfg.decode_dim, activation=self.act, norm_type=None)
         self.fc3 = fc_block(self.cfg.decode_dim, self.cfg.delay_dim, activation=None, norm_type=None)  # regression
@@ -54,7 +54,7 @@ class QueuedHead(nn.Module):
     def __init__(self, cfg):
         super(QueuedHead, self).__init__()
         self.cfg = cfg
-        self.act = build_activation(self.cfg.activation)
+        self.act = build_activation(self.cfg.activation, inplace=True)
         # to get queued logits
         self.fc1 = fc_block(self.cfg.input_dim, self.cfg.decode_dim, activation=self.act, norm_type=None)
         self.fc2 = fc_block(self.cfg.decode_dim, self.cfg.decode_dim, activation=self.act, norm_type=None)
@@ -87,7 +87,7 @@ class SelectedUnitsHead(nn.Module):
     def __init__(self, cfg):
         super(SelectedUnitsHead, self).__init__()
         self.cfg = cfg
-        self.act = build_activation(self.cfg.activation)
+        self.act = build_activation(self.cfg.activation, inplace=True)
         self.key_fc = fc_block(self.cfg.entity_embedding_dim, self.cfg.key_dim, activation=None, norm_type=None)
         self.query_fc1 = fc_block(self.cfg.input_dim, self.cfg.func_dim, activation=self.act)
         self.query_fc2 = fc_block(self.cfg.func_dim, self.cfg.key_dim, activation=None)
@@ -299,7 +299,7 @@ class TargetUnitHead(nn.Module):
     def __init__(self, cfg):
         super(TargetUnitHead, self).__init__()
         self.cfg = cfg
-        self.act = build_activation(self.cfg.activation)
+        self.act = build_activation(self.cfg.activation, inplace=True)
         self.key_fc = fc_block(self.cfg.entity_embedding_dim, self.cfg.key_dim, activation=None, norm_type=None)
         self.query_fc1 = fc_block(self.cfg.input_dim, self.cfg.key_dim, activation=self.act, norm_type=None)
         self.query_fc2 = fc_block(self.cfg.key_dim, self.cfg.key_dim, activation=None, norm_type=None)
@@ -328,7 +328,7 @@ class LocationHead(nn.Module):
     def __init__(self, cfg):
         super(LocationHead, self).__init__()
         self.cfg = cfg
-        self.act = build_activation(self.cfg.activation)
+        self.act = build_activation(self.cfg.activation, inplace=True)
         self.reshape_channel = self.cfg.reshape_channel
 
         self.conv1 = conv2d_block(
@@ -337,7 +337,7 @@ class LocationHead(nn.Module):
             1,
             1,
             0,
-            activation=build_activation(self.cfg.activation),
+            activation=build_activation(self.cfg.activation, inplace=True),
             norm_type=None
         )
         self.res = nn.ModuleList()
@@ -347,7 +347,7 @@ class LocationHead(nn.Module):
         self.project_embed = fc_block(
             self.cfg.input_dim,
             self.cfg.spatial_y // 8 * self.cfg.spatial_x // 8 * 4,
-            activation=build_activation(self.cfg.activation)
+            activation=build_activation(self.cfg.activation, inplace=True)
         )
 
         self.res = nn.ModuleList()
@@ -360,12 +360,12 @@ class LocationHead(nn.Module):
                         3,
                         1,
                         1,
-                        activation=build_activation(self.cfg.activation),
+                        activation=build_activation(self.cfg.activation, inplace=True),
                         norm_type=None
                     )
                 )
             else:
-                self.res.append(ResBlock(self.dim, build_activation(self.cfg.activation), norm_type=None))
+                self.res.append(ResBlock(self.dim, build_activation(self.cfg.activation, inplace=True), norm_type=None))
 
         self.upsample = nn.ModuleList()  # upsample list
         dims = [self.res_dim] + self.cfg.upsample_dims
@@ -374,7 +374,7 @@ class LocationHead(nn.Module):
             if i == len(self.cfg.upsample_dims) - 1:
                 activation = None
             else:
-                activation = build_activation(self.cfg.activation)
+                activation = build_activation(self.cfg.activation, inplace=True)
             if self.cfg.upsample_type == 'deconv':
                 self.upsample.append(
                     deconv2d_block(dims[i], dims[i + 1], 4, 2, 1, activation=activation, norm_type=None)
